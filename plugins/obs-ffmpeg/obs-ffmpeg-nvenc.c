@@ -397,8 +397,9 @@ static bool nvenc_encode(void *data, struct encoder_frame *frame,
 void nvenc_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "bitrate", 2500);
+	obs_data_set_default_int(settings, "max_bitrate", 5000);
 	obs_data_set_default_int(settings, "keyint_sec", 0);
-	obs_data_set_default_int(settings, "cqp", 23);
+	obs_data_set_default_int(settings, "cqp", 20);
 	obs_data_set_default_string(settings, "rate_control", "CBR");
 	obs_data_set_default_string(settings, "preset", "hq");
 	obs_data_set_default_string(settings, "profile", "high");
@@ -412,11 +413,14 @@ static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p,
 {
 	const char *rc = obs_data_get_string(settings, "rate_control");
 	bool cqp = astrcmpi(rc, "CQP") == 0;
+	bool vbr = astrcmpi(rc, "VBR") == 0;
 	bool lossless = astrcmpi(rc, "lossless") == 0;
 	size_t count;
 
 	p = obs_properties_get(ppts, "bitrate");
 	obs_property_set_visible(p, !cqp && !lossless);
+	p = obs_properties_get(ppts, "max_bitrate");
+	obs_property_set_visible(p, vbr);
 	p = obs_properties_get(ppts, "cqp");
 	obs_property_set_visible(p, cqp);
 
@@ -424,7 +428,7 @@ static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p,
 	count = obs_property_list_item_count(p);
 
 	for (size_t i = 0; i < count; i++) {
-		bool compatible = (i == 0 || i == 2);
+		bool compatible = (i == 0 || i == 3);
 		obs_property_list_item_disable(p, i, lossless && !compatible);
 	}
 
@@ -443,6 +447,7 @@ obs_properties_t *nvenc_properties(void *unused)
 			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	obs_property_list_add_string(p, "CBR", "CBR");
 	obs_property_list_add_string(p, "CQ", "CQP");
+	obs_property_list_add_string(p, "VBR", "VBR");
 	obs_property_list_add_string(p, obs_module_text("Lossless"),
 			"lossless");
 
@@ -450,9 +455,11 @@ obs_properties_t *nvenc_properties(void *unused)
 
 	obs_properties_add_int(props, "bitrate",
 			obs_module_text("Bitrate"), 50, 300000, 50);
+	obs_properties_add_int(props, "max_bitrate",
+			obs_module_text("MaxBitrate"), 50, 300000, 50);
 
 	obs_properties_add_int(props, "cqp", obs_module_text("NVENC.CQLevel"),
-			0, 50, 1);
+			14, 30, 1);
 
 	obs_properties_add_int(props, "keyint_sec",
 			obs_module_text("KeyframeIntervalSec"), 0, 10, 1);
